@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(eza:*)",
+      "Bash(ll:*)",
+      "Bash(tree:*)",
+      "Bash(dust:*)",
+      "Bash(fd:*)",
+      "Bash(find:*)",
+      "Bash(rg:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(bat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(file:*)",
+      "Bash(which:*)",
+      "Bash(command -v:*)",
+      "Bash(echo:*)",
+      "Bash(printf:*)",
+      "Bash(pwd)",
+      "Bash(env)",
+      "Bash(tldr:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git remote:*)",
+      "Bash(git stash list:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run list:*)"
+    ],
+    "deny": [
+      "Bash(sudo:*)"
+    ],
+    "defaultMode": "auto"
+  },
+  "model": "claude-opus-4-7",
+  "theme": "dark",
+  "skipAutoPermissionPrompt": true,
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
+  }
+}

@@ -1,0 +1,14 @@
+# Editor swaps & temp files
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Local bootstrap log (generated during implementation, per-machine)
+BOOTSTRAP_LOG.md
+
+# Anything explicitly marked secret
+*.secret
+*.private
+*.local
