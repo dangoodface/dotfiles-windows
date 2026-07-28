@@ -32,7 +32,7 @@ All installed **per-user via winget**, each package getting its own PATH entry u
 | dust | 1.2.4 | — |
 | eza | 0.23.4 | 0.23.5 |
 | fd | 10.4.2 | — |
-| **fzf** | **0.72.0 — BROKEN, see below** | 0.74.1 |
+| fzf | 0.74.1 | — (repaired 2026-07-28, see below) |
 | jq | 1.8.2 | — |
 | lazygit | 0.61.1 | 0.63.1 |
 | ripgrep (MSVC) | 15.1.0 | 15.2.0 |
@@ -42,30 +42,64 @@ All installed **per-user via winget**, each package getting its own PATH entry u
 | neovim | 0.12.2 | 0.12.4 |
 | Bitwarden CLI | present | — |
 
-## KNOWN BREAKAGE — fzf
+## RESOLVED — the fzf phantom install (keep this; the failure mode recurs)
 
-`winget list` reports fzf 0.72.0 installed and its PATH entry exists, but **the
-binary is gone**. The package directory contains only its manifest database:
+**Fixed 2026-07-28.** Recorded because the *diagnosis* is the valuable part — this
+failure is completely silent and easy to misread as "PSFzf is broken."
 
-```
-%LOCALAPPDATA%\Microsoft\WinGet\Packages\junegunn.fzf_Microsoft.Winget.Source_8wekyb3d8bbwe\
-  junegunn.fzf_Microsoft.Winget.Source_8wekyb3d8bbwe.db      <- 16 KB, and nothing else
-```
+Symptom: `winget list` reported `junegunn.fzf 0.72.0` installed and its PATH entry was
+present, but the package directory held **only its 16 KB manifest database** — no
+`fzf.exe`. So `Get-Command fzf` → not found.
 
-`Get-Command fzf` → not found. Because the PSFzf block in the fragment is guarded on
-`Get-Command fzf`, it **silently skips**: `Ctrl+R` fuzzy history, `Ctrl+T` file
-picker and `Alt+C` directory picker are all dead, with no error at shell startup.
+Why it was invisible: the PSFzf block in the PowerShell fragment is guarded on
+`Get-Command fzf`. With the binary absent the guard fails and the whole block is
+**skipped without an error** — `Ctrl+R` fuzzy history, `Ctrl+T` file picker and `Alt+C`
+directory picker just quietly do nothing. Nothing is logged at shell startup.
 
-Fix:
+Fix applied:
 
 ```pwsh
-winget install --id junegunn.fzf --force   # reinstall, also moves to 0.74.1
-# restart the shell so the fragment's PATH rebuild picks it up
+winget install --id junegunn.fzf --force --accept-package-agreements --accept-source-agreements
+# then restart the shell so the fragment's PATH rebuild sees the new binary
 ```
 
-A fresh machine following this brief normally should not hit this — it is a
-corrupted install on the source machine, not a design flaw. But **verify the binary,
-not `winget list`**, because `winget list` lies here.
+Verified after repair — `fzf.exe` present (5,460,480 bytes), `fzf --version` →
+`0.74.1 (eae8d9d2)`, and in a fresh PS7 session:
+
+```
+Key    Function
+---    --------
+Alt+c  CustomAction
+Ctrl+t Fzf Provider Select
+Ctrl+r Fzf Reverse History Select
+```
+
+**Lesson: verify the binary, not `winget list`.** `winget list` reported this package
+as healthy the entire time. Prefer `Get-Command <tool>` in the verification loop.
+
+A fresh machine following this brief normally should not hit this — it was a corrupted
+install, not a design flaw.
+
+### Optional hardening
+
+The silent-skip behaviour is by design (the fragment must not throw when a tool is
+absent), but it hides real breakage. If losing `Ctrl+R` without notice is unacceptable,
+make the guard noisy rather than silent:
+
+```pwsh
+if (Get-Module -ListAvailable -Name PSFzf) {
+    if (Get-Command fzf -ErrorAction SilentlyContinue) {
+        Import-Module PSFzf
+        Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
+        Set-PSReadLineKeyHandler -Chord 'Alt+c' -ScriptBlock { Invoke-FuzzySetLocation }
+    } else {
+        Write-Host "PSFzf installed but fzf.exe missing — Ctrl+R/Ctrl+T/Alt+C disabled." -ForegroundColor DarkYellow
+    }
+}
+```
+
+Not applied on the source machine — it adds a line of startup noise whenever a tool is
+legitimately absent. Noted as a deliberate trade-off.
 
 ## Constraints
 
@@ -86,7 +120,7 @@ All entries should report `OK <path>`. Do **not** substitute `winget list` for t
 see the fzf breakage above, where `winget list` reports a package that has no binary.
 
 Known-acceptable `MISSING` on the source machine: `btop`/`ntop` (skipped by design).
-Known-unacceptable: `fzf` (regression, fix it).
+Everything else must report OK — as of 2026-07-28 all do.
 
 ## Implementation hints
 

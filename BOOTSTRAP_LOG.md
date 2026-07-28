@@ -12,10 +12,10 @@ drift and folds it into the briefs.
 
 ### Verdict
 
-The environment is **working and reproducible**, with one live regression (fzf) and
-four machine-coupled absolute paths that must be edited when porting. The repo's
-biggest inaccuracy was structural: it claimed no terminal config existed, when in fact
-the terminal stack had become the most customised part of the setup.
+The environment is **working and reproducible**. One live regression was found (fzf)
+and **fixed the same day**; four machine-coupled absolute paths must be edited when
+porting. The repo's biggest inaccuracy was structural: it claimed no terminal config
+existed, when in fact the terminal stack had become the most customised part of the setup.
 
 ### Drift found
 
@@ -69,25 +69,32 @@ Recommended permanent fix on a fresh machine:
 `winget install --id Microsoft.PowerShell -e --scope machine --force`, then point both
 configs at `C:/Program Files/PowerShell/7/pwsh.exe`. Full detail in brief 10.
 
-### OPEN — fzf is broken
+### ~~OPEN~~ RESOLVED same day — fzf was broken
 
-`winget list` reports `junegunn.fzf 0.72.0` installed and its PATH entry is present, but
-the package directory contains **only** its 16 KB `.db` manifest — no `fzf.exe`.
+`winget list` reported `junegunn.fzf 0.72.0` installed and its PATH entry was present,
+but the package directory contained **only** its 16 KB `.db` manifest — no `fzf.exe`.
 `Get-Command fzf` → not found.
 
 Because the PSFzf block in the fragment is guarded on `Get-Command fzf`, it skips
 silently: **`Ctrl+R` fuzzy history, `Ctrl+T` file picker and `Alt+C` directory picker are
 all dead**, with no startup error.
 
-Not fixed in this pass — it is a machine repair, not a repo change:
+Repaired:
 
 ```pwsh
-winget install --id junegunn.fzf --force    # also moves 0.72.0 -> 0.74.1
-# restart the shell so the fragment's PATH rebuild sees it
+winget install --id junegunn.fzf --force --accept-package-agreements --accept-source-agreements
 ```
 
+Verified after the fix: `fzf.exe` present (5,460,480 bytes), `fzf --version` →
+`0.74.1 (eae8d9d2)`, and in a fresh PS7 session the three bindings are live —
+`Ctrl+r` → *Fzf Reverse History Select*, `Ctrl+t` → *Fzf Provider Select*,
+`Alt+c` → *CustomAction*, with `Get-Module PSFzf` confirming the module loaded.
+
 Lesson folded into brief 05: **verify the binary, not `winget list`** — `winget list`
-reports this package as healthy.
+reported this package as healthy the entire time. Brief 05 also now carries an optional
+noisy-guard variant of the PSFzf block, for anyone who would rather see a warning at
+startup than silently lose three keybindings. Not applied here (deliberate trade-off:
+the fragment stays quiet when a tool is legitimately absent).
 
 ### Machine-coupled values (the porting surface)
 

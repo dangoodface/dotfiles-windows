@@ -46,9 +46,12 @@ Expected results, calibrated against the source machine (2026-07-28):
 
 | Result | Tools | Meaning |
 |---|---|---|
-| **Must be OK** | `pwsh`, `wezterm`, `zellij`, `starship`, `mise`, `node`, `python`, `git`, `gh`, `claude`, `eza`, `bat`, `rg`, `fd`, `zoxide`, `lazygit`, `dust`, `nvim`, `jq`, `bw` | Any MISSING here is a real failure |
-| **Known-broken** | `fzf` | Currently MISSING on the source machine — corrupted winget install. Fix with `winget install --id junegunn.fzf --force`. See `BOOTSTRAP_LOG.md`. |
+| **Must be OK** | `pwsh`, `wezterm`, `zellij`, `starship`, `mise`, `node`, `python`, `git`, `gh`, `claude`, `eza`, `bat`, `fzf`, `rg`, `fd`, `zoxide`, `lazygit`, `dust`, `nvim`, `jq`, `bw` | Any MISSING here is a real failure. All report OK as of 2026-07-28. |
 | **Expected MISSING** | `rustc`, `go`, `php`, `btop`, `ntop` | Deliberately not installed. Starship omits those prompt segments; `top` is undefined. Not failures. |
+
+`fzf` earns a specific mention: it was MISSING during the 2026-07-28 audit despite
+`winget list` reporting it installed, and the only symptom was three keybindings quietly
+doing nothing. Repaired; see brief 05.
 
 `jq` deserves emphasis: it is **not** optional. The Claude Code safeguard hooks parse
 their payloads with it, and if it is absent they fail *silently* — no error in Claude
@@ -61,8 +64,16 @@ source machine even though the binary does not exist.
 
 - [ ] Type a partial command from history → autosuggestion appears as ghost-text.
 - [ ] Press Tab on a partial command → menu completion appears (not just first match).
-- [ ] Press `Ctrl+R` → fzf history search opens. **(Known-failing: see fzf above.)**
-- [ ] Press `Ctrl+T` → fzf file picker; `Alt+C` → directory picker. Same dependency.
+- [ ] Press `Ctrl+R` → fzf history search opens.
+- [ ] Press `Ctrl+T` → fzf file picker; `Alt+C` → directory picker.
+- [ ] Or check the bindings non-interactively, which is faster and unambiguous:
+      ```pwsh
+      Get-PSReadLineKeyHandler | Where-Object Key -in 'Ctrl+r','Ctrl+t','Alt+c' |
+        Select-Object Key,Function
+      # expect: Fzf Reverse History Select / Fzf Provider Select / CustomAction
+      ```
+      If these come back as the PSReadLine defaults (`ReverseSearchHistory`, etc.) the
+      PSFzf block was skipped — `fzf.exe` is missing.
 - [ ] `ls`, `ll`, `la`, `tree` all run eza variants without error.
 - [ ] `cat <somefile>` runs bat with syntax highlighting.
 - [ ] `lg` opens lazygit if cwd is a git repo.

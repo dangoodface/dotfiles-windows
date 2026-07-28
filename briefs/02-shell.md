@@ -80,8 +80,9 @@ Open a fresh PowerShell 7 session:
 - Prompt is the starship prompt with all glyphs visible.
 - Typing a partial command shows ghost-text autosuggestion from history.
 - Tab triggers a menu completion (not just first match).
-- `Ctrl+R` opens fzf history search. **Currently BROKEN on the source machine —
-  `fzf.exe` is missing. See brief 05 and `BOOTSTRAP_LOG.md`.**
+- `Ctrl+R` opens fzf history search; `Ctrl+T` the file picker; `Alt+C` the directory
+  picker. If any silently does nothing, `fzf.exe` is missing and the fragment's guard
+  skipped the PSFzf block without error — see brief 05.
 - `ls`, `cat`, `lg`, `cd <partial>` all work as expected.
 - `git init` in `$HOME` is refused; `git init` in any subdirectory works.
 - Startup time: `Measure-Command { pwsh -NoLogo -Command 'exit' }` should report < 1.5s.
@@ -124,7 +125,9 @@ Open a fresh PowerShell 7 session:
   hooks rather than being wrapped.
 - `Set-Alias` cannot pass arguments. For aliases that need flags (most of them), use a function wrapper: `function ll { eza -la --icons --git --header @args }`.
 - `cat` and `ls` are built-in PowerShell aliases for `Get-Content` and `Get-ChildItem`. The fragment overrides both with `Remove-Item Alias:... -Force` then a function. This is a deliberate, confirmed choice — `Get-ChildItem` is still reachable by its real name.
-- PSFzf requires `fzf.exe` to be in PATH (brief 05 installs it). If `fzf.exe` is
-  absent the fragment's guard silently skips the whole block — you lose `Ctrl+R`
-  with no error message. That is exactly the current bug.
+- **PSFzf requires `fzf.exe` on PATH** (brief 05 installs it). If `fzf.exe` is absent
+  the fragment's guard silently skips the whole block — you lose `Ctrl+R`/`Ctrl+T`/`Alt+C`
+  with no error message. This actually happened on the source machine (a winget install
+  that left a manifest but no binary); see brief 05's RESOLVED section, which includes an
+  optional noisy-guard variant if silent degradation isn't acceptable.
 - mise's PowerShell activation requires mise 2024.x or newer. As-built: **2026.5.6**.

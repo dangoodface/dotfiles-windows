@@ -9,8 +9,8 @@ The repo is itself the instruction set — another Claude Code session reads the
 A future Claude Code session running on a fresh Windows machine, tasked with bootstrapping the same dev environment Daniel has on Fedora 43. The implementing session should:
 
 1. Read `TARGET.md` for the high-level goal and design constraints.
-2. Read `BOOTSTRAP_LOG.md` for the as-built state of the source machine, including
-   what is currently broken. Do not re-derive it.
+2. Read `BOOTSTRAP_LOG.md` for the as-built state of the source machine — versions,
+   decisions taken, and any known breakage. Do not re-derive it.
 3. Read `briefs/` in numerical order — each is a single-component goal with constraints, gotchas, and verification.
 4. Use `reference-configs/` for the live configs. Most copy verbatim; the ones with
    machine-specific paths have an explicit PORTING table in their brief.
