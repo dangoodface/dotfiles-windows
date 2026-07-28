@@ -1,5 +1,9 @@
 "$schema" = 'https://starship.rs/config-schema.json'
 
+# Bump scan_timeout for deep dirs like C:\Windows\System32 (thousands of files).
+# Default 30ms is too tight on Windows; 1000ms eliminates the warning.
+scan_timeout = 1000
+
 format = """
 [░▒▓](#a3aed2)\
 [  ](bg:#a3aed2 fg:#090c0c)\

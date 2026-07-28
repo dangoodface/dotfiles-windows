@@ -2,17 +2,47 @@
 
 ## Goal
 
-Install mise (formerly rtx) and pin the same global runtime versions Daniel uses on Linux: **node@lts**, **python@3.13**, **rust@stable**.
+Install mise and pin the global runtime versions: **node@lts**, **python@3.13**.
+**`rust` is deliberately NOT pinned on Windows** — see below.
 
-## Source of truth
+## As-built (source machine, 2026-07-28)
 
-Linux config: `mise/.config/mise/config.toml` in https://github.com/dangoodface/dotfiles. Identical content goes in the Windows install.
+`%USERPROFILE%\.config\mise\config.toml`, mirrored to `reference-configs/mise-config.toml`:
 
 ```toml
 [tools]
 node = "lts"
 python = "3.13"
-rust = "stable"
+```
+
+Resolved by `mise ls`:
+
+| Tool | Version | Notes |
+|---|---|---|
+| node | 24.15.0 | `lts`; also hosts the Claude Code npm install — see brief 08 |
+| python | 3.13.13 | |
+| rust | *absent* | `rustc` does not resolve |
+
+**Why rust was dropped:** Rust on Windows links via MSVC, requiring Visual Studio
+Build Tools 2022 (~6 GB), which is not installed here and was not worth the download
+for the actual workload. `rustc`, `go` and `php` all report MISSING and that is
+expected — starship's `[rust]`, `[golang]`, `[php]` modules only render when the
+runtime is present, so the prompt just omits those segments.
+
+To restore rust parity on a new machine: install Build Tools 2022 with the C++
+workload **first**, then `mise use --global rust@stable`. Pinning rust without the
+Build Tools gives you a `rustc` that fails at the linker on nearly every build.
+
+## Source of truth
+
+Linux config: `mise/.config/mise/config.toml` in https://github.com/dangoodface/dotfiles,
+which pins node, python **and rust**. The Windows install intentionally diverges on rust.
+
+```toml
+[tools]
+node = "lts"
+python = "3.13"
+rust = "stable"    # Linux only — omitted on Windows
 ```
 
 ## Constraints
@@ -24,11 +54,11 @@ rust = "stable"
 ## Verification
 
 ```pwsh
-mise --version                    # >= 2024.x
-mise list                         # should show node, python, rust
-node --version                    # should match LTS major version
-python --version                  # should be 3.13.x
-rustc --version                   # should be stable
+mise --version                    # as-built 2026.5.6
+mise ls                           # node + python only; rust absent by design
+node --version                    # v24.15.0
+python --version                  # 3.13.13
+# rustc --version                 # expected MISSING on Windows — see above
 ```
 
 ## Implementation hints

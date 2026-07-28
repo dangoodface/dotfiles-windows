@@ -2,11 +2,49 @@
 
 ## Goal
 
-Install Claude Code (Anthropic's CLI coding assistant) and apply Daniel's settings — permissions allowlist, model pin, theme.
+Install Claude Code and apply Daniel's settings — permissions allowlist, safeguard
+hooks, theme, effort level.
+
+## As-built (source machine, 2026-07-28)
+
+| Property | Value |
+|---|---|
+| Version | `2.1.220` |
+| Install method | **npm, under the mise-managed node** — `@anthropic-ai/claude-code@2.1.220` |
+| Resolved binary | `%LOCALAPPDATA%\mise\installs\node\24.15.0\claude.ps1` |
+| Settings | `%USERPROFILE%\.claude\settings.json` (134 lines) |
+
+**The install is coupled to mise's node 24.15.0.** When mise bumps the node LTS, the
+old install directory goes away and `claude` stops resolving. Either reinstall after a
+node bump (`npm install -g @anthropic-ai/claude-code`) or switch to the native
+installer (`irm https://claude.ai/install.ps1 | iex`), which decouples it from node
+entirely. The native installer is the better choice on a fresh machine; it was not used
+here.
+
+`reference-configs/claude-settings.json` is the **live settings file verbatim**. It has
+diverged substantially from the original 53-line Linux copy:
+
+| Change | Detail |
+|---|---|
+| Model pin **removed** | Originally `"model": "claude-opus-4-7"`. Now unpinned — follows the CLI default rather than being frozen. |
+| PowerShell allowlist added | Option (b) from the gotcha below was taken: additive. `Get-ChildItem`, `Get-Content`, `Select-String`, `Test-Path`, `Get-Command`, `Write-Output`, `Measure-Object`, `Format-Table`, `Where-Object`, `Sort-Object`. |
+| `WebSearch`, `WebFetch` allowed | Needed by the Analyst Harness research agents (brief 11). |
+| Windows privilege-escalation deny added | `"Bash(Start-Process*-Verb*RunAs*)"` alongside `Bash(sudo:*)`. |
+| Hooks layer added | 4 × `PreToolUse`, 1 × `PostToolUse`, 2 × `Stop`. See brief 11. |
+| `"effortLevel": "high"` | |
+| `"tui": "fullscreen"` | |
+| `"agentPushNotifEnabled": true` | |
+
+**The hooks require `jq`** (`winget install --id jqlang.jq`, brief 05) and two shell
+scripts at `~/.claude/hooks/` that are **not** in this repo — see brief 11 for why and
+what they do. If `jq` is missing the hooks fail silently and the safeguards are simply
+not there.
 
 ## Source of truth
 
-Linux config: `claude/.claude/settings.json` in https://github.com/dangoodface/dotfiles. A copy is in `reference-configs/claude-settings.json` in this repo. The settings are mostly cross-platform; the only thing that may need adjustment is the Bash command allowlist (some commands have different syntax or names on Windows).
+Linux config: `claude/.claude/settings.json` in https://github.com/dangoodface/dotfiles.
+The Windows copy is now the more evolved of the two; treat
+`reference-configs/claude-settings.json` here as authoritative for Windows.
 
 ## Constraints
 

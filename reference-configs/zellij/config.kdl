@@ -1,0 +1,34 @@
+// ~/AppData/Roaming/Zellij/config/config.kdl
+// Windows zellij config, mirroring the WezTerm setup (Catppuccin Mocha).
+// Font/GPU rendering come from the terminal (WezTerm), not from zellij.
+
+// ── Shell ───────────────────────────────────────────────────────────────
+// This MUST point at the REAL PowerShell 7 binary. The `pwsh.exe` that sits on
+// PATH (%LOCALAPPDATA%\Microsoft\WindowsApps\pwsh.exe) is a 0-byte Microsoft
+// Store "app execution alias" reparse stub. Terminals/multiplexers that spawn
+// processes directly cannot execute it, so you silently land in Windows
+// PowerShell 5.1 - and none of your add-ons load, because 5.1 reads a different
+// profile (Documents\WindowsPowerShell\) than 7 (Documents\PowerShell\).
+//
+// If you later install PowerShell 7 machine-wide:
+//   winget install --id Microsoft.PowerShell -e --scope machine --force
+// then change this line to the stable path (and it stops breaking on upgrades):
+//   default_shell "C:/Program Files/PowerShell/7/pwsh.exe"
+default_shell "C:/Program Files/WindowsApps/Microsoft.PowerShell_7.6.4.0_x64__8wekyb3d8bbwe/pwsh.exe"
+
+// ── Default working directory ─────────────────────────────────────────────
+// New tabs/panes open here. Local project hub (not OneDrive); cd into any
+// project (deep-research-pro, timeguessr_AI, peg-apex) from this root.
+default_cwd "C:/Users/51372/Projects"
+
+// ── Look ────────────────────────────────────────────────────────────────
+theme "catppuccin-mocha"
+
+// Keep pane frames + the status bar: the modal-keybinding discoverability you
+// flagged in TERMINAL_RESEARCH.md as zellij's advantage over WezTerm's mux.
+pane_frames true
+copy_on_select true
+
+// Default modal keybindings are left untouched (Ctrl+p pane, Ctrl+t tab,
+// Ctrl+n resize, Ctrl+o session), so muscle memory from the Linux setup carries
+// over unchanged.

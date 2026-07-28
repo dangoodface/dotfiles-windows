@@ -17,9 +17,48 @@ On Linux Daniel uses:
 - The chosen backend must support: storing arbitrary string secrets, retrieving by name in a script, and ideally syncing across machines.
 - Daniel's `~/.password-store` repo on GitHub is the source of truth for existing secrets. Whatever backend gets chosen must either (a) ingest from the existing repo, (b) coexist with a port of `pass`, or (c) trigger a one-time secret migration with Daniel's involvement.
 
-## Decision required from Daniel
+## DECIDED — Option B, Bitwarden CLI
 
-The implementing Claude should NOT silently choose. Surface these three options:
+> **Resolved on the source machine.** `bw` is installed via
+> `winget install --id Bitwarden.CLI` and the `secret` function is live in
+> `reference-configs/pwsh-dotfiles-fragment.ps1`. The options table below is kept
+> for context on *why*, not as an open question.
+
+As-built:
+
+```pwsh
+function secret {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$BwItem
+    )
+    if (-not (Get-Command bw -ErrorAction SilentlyContinue)) { Write-Error "bw not found in PATH"; return }
+    if (-not $env:BW_SESSION) { Write-Error "BW_SESSION not set. Run: `$env:BW_SESSION = (bw unlock --raw)"; return }
+    Set-Item "env:$Name" (bw get password $BwItem --raw)
+}
+```
+
+Usage: `secret BRAVE_API_KEY brave-search`
+
+Per-machine steps that are **not** captured in this repo and must be done by hand on
+a new machine (they are interactive and involve credentials):
+
+1. `bw login` — interactive.
+2. `$env:BW_SESSION = (bw unlock --raw)` — per shell session; the function errors
+   with a usable message if unset.
+
+### Still outstanding
+
+**The `~/.password-store` → Bitwarden migration has not been done.** The
+`dangoodface/password-store` repo remains the source of truth for existing secrets;
+Bitwarden holds only whatever has been added to it directly. GPG/gpg4win is not
+installed, so those entries are not currently readable on this machine. Anything that
+needs an old `pass` entry has to be retrieved from another machine for now.
+
+Consequence for git: **commit signing is not configured** (`commit.gpgSign` unset) —
+see brief 07.
+
+## Why Option B (kept for context)
 
 | Option | Backend | Trade-off |
 |---|---|---|

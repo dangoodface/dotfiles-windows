@@ -8,12 +8,53 @@ Set up a PowerShell 7 profile that gives Daniel the same shell behaviors he has 
 
 The Linux zshrc lives at https://github.com/dangoodface/dotfiles in `zsh/.zshrc`. The implementing Claude should read it end-to-end and translate behavior-for-behavior, not line-for-line. PowerShell idioms differ; preserve the *intent*.
 
+## As-built layout (source machine, 2026-07-28)
+
+The fragment does **not** live next to the profile. Reproduce this split:
+
+| Piece | Path |
+|---|---|
+| Profile (2-line stub) | `C:\Users\51372\OneDrive - <Org>\Documents\PowerShell\profile.ps1` — i.e. `$PROFILE.CurrentUserAllHosts` |
+| Fragment (all the logic) | `%USERPROFILE%\.config\powershell\dotfiles-fragment.ps1` |
+| Repo copy of the fragment | `reference-configs/pwsh-dotfiles-fragment.ps1` |
+
+The entire stub is:
+
+```pwsh
+# dotfiles-windows fragment
+if (Test-Path "C:\Users\51372\.config\powershell\dotfiles-fragment.ps1") { . "C:\Users\51372\.config\powershell\dotfiles-fragment.ps1" }
+```
+
+`$PROFILE.CurrentUserCurrentHost` (`Microsoft.PowerShell_profile.ps1`) does not
+exist, and should stay that way — one profile, all hosts.
+
+**Why the fragment is not under `Documents\PowerShell\`:** on this machine
+`Documents` is **redirected into a corporate `OneDrive - <Org>` folder**. Anything placed there syncs to
+the corporate cloud tenant. The stub has to live there (PowerShell decides that
+path, not us), but it is content-free — a guard and a dot-source. All actual
+dev-tooling config lives outside OneDrive at `~/.config/powershell\`.
+
+On a new machine, resolve the stub path dynamically rather than assuming:
+
+```pwsh
+$PROFILE.CurrentUserAllHosts    # may or may not be OneDrive-redirected
+```
+
+Also note: **PowerShell 7 here is the MSIX/Store package, not an MSI.** That has
+no effect on the profile, but it is the reason brief 10's terminal configs point at
+a versioned `WindowsApps` path. If a terminal ever launches 5.1 by mistake it reads
+`Documents\WindowsPowerShell\` instead and *none* of this loads — see brief 10.
+
 ## Constraints
 
 - Use `$PROFILE.CurrentUserAllHosts` (not `$PROFILE` which is host-specific).
-- Source a separate fragment file (e.g. `~/Documents/PowerShell/dotfiles-fragment.ps1`) from `$PROFILE` rather than putting everything in the main profile, so the user can opt out cleanly by removing the source line.
+- Keep the fragment **outside** any cloud-synced folder (see above). Source it from
+  the profile so the user can opt out cleanly by deleting one line.
 - Keep startup time under 1 second on a modern machine. PSReadLine + zoxide + starship together should not exceed ~500ms.
 - Idempotent profile install — re-running the brief must not duplicate the source line in `$PROFILE`.
+- Execution policy as-built: `LocalMachine = RemoteSigned`, `CurrentUser = Undefined`.
+  Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` on the new machine if the
+  profile is blocked.
 
 ## What to translate from `zsh/.zshrc`
 
@@ -29,7 +70,7 @@ The Linux zshrc lives at https://github.com/dangoodface/dotfiles in `zsh/.zshrc`
 | `eval "$(zoxide init zsh --cmd cd)"` | `Invoke-Expression (& { (zoxide init powershell --cmd cd \| Out-String) })` |
 | `alias ls='eza --icons --git'` | `Set-Alias -Name ls -Value eza` (or function wrapper for flag passthrough) |
 | `alias cat='bat --paging=never'` | function wrapper, since PowerShell `cat` is a built-in alias for `Get-Content` and aliases can't easily inject flags |
-| `secret()` zsh function | Defer until brief 09 picks the secret backend |
+| `secret()` zsh function | **Ported — Bitwarden CLI backend.** Brief 09 chose Option B; the function is live in the fragment |
 | `git()` wrapper refusing `git init` in `$HOME` | function `git { if ($PWD.Path -eq $HOME -and $args[0] -eq 'init') { Write-Error 'Refusing to git init in $HOME'; return }; & git.exe @args }` |
 
 ## Verification
@@ -39,22 +80,51 @@ Open a fresh PowerShell 7 session:
 - Prompt is the starship prompt with all glyphs visible.
 - Typing a partial command shows ghost-text autosuggestion from history.
 - Tab triggers a menu completion (not just first match).
-- `Ctrl+R` opens fzf history search.
+- `Ctrl+R` opens fzf history search. **Currently BROKEN on the source machine —
+  `fzf.exe` is missing. See brief 05 and `BOOTSTRAP_LOG.md`.**
 - `ls`, `cat`, `lg`, `cd <partial>` all work as expected.
 - `git init` in `$HOME` is refused; `git init` in any subdirectory works.
 - Startup time: `Measure-Command { pwsh -NoLogo -Command 'exit' }` should report < 1.5s.
+- `$PSVersionTable.PSVersion` reports 7.x, not 5.1.
 
 ## Implementation hints
 
-- Install PSReadLine if not already present: `Install-Module PSReadLine -Force -Scope CurrentUser`. PowerShell 7 ships with PSReadLine 2.x preinstalled, but check the version — features like `PredictionViewStyle ListView` need PSReadLine 2.2+.
+- Module versions as-built: **PSReadLine 2.4.5** (PS7's bundled copy) and
+  **PSFzf 2.7.10**. Note PSReadLine **2.0.0** is also present — that is Windows
+  PowerShell 5.1's copy, visible from `Get-Module -ListAvailable`. The fragment
+  therefore selects the highest version explicitly rather than trusting the first
+  hit; see the `$psrl` guard.
 - Install PSFzf: `Install-Module -Name PSFzf -Scope CurrentUser`.
-- The `reference-configs/pwsh-profile-skeleton.ps1` in this repo is a starting point; the implementing Claude is expected to extend and customize it, not just copy verbatim.
-- Sourcing the fragment from `$PROFILE`: append `. "$HOME\Documents\PowerShell\dotfiles-fragment.ps1"` once. Check first that the line isn't already there.
+- Copy `reference-configs/pwsh-dotfiles-fragment.ps1` to
+  `%USERPROFILE%\.config\powershell\dotfiles-fragment.ps1`. This is the **live
+  fragment verbatim**, not a skeleton — it is the source of truth. Extend it rather
+  than rewriting.
+- Sourcing the fragment from `$PROFILE`: append the 2-line guard shown above once,
+  with the path rewritten for the new machine's username. Check first that it isn't
+  already there.
 
-## Gotchas
+## Gotchas — all of these are load-bearing, learned the hard way
 
+- **Stale `$env:Path`.** Windows does not propagate User/Machine PATH changes to
+  already-running parent processes. A `pwsh` launched from a shell whose parent
+  predates a `winget install` sees a stale PATH and newly-installed binaries do not
+  resolve. The fragment rebuilds `$env:Path` from the registry-persistent
+  Machine+User values on every load. Keep that block first.
+- **`mise activate pwsh` throws 4× on a fresh shell.** Its command-not-found hook
+  calls `[PSConsoleReadLine]::GetHistoryItems()[-1]`, which raises
+  `NullReferenceException` when history is empty. The fragment pre-sets
+  `$Global:__mise_pwsh_command_not_found = $true` to skip registering that hook.
+  Cost: mise no longer auto-installs runtimes on an unknown command. Per-project
+  runtime switching via `.mise.toml` is unaffected.
+- **PSReadLine 2.0 co-installed.** `PredictionSource`/`PredictionViewStyle` need
+  2.2+. The fragment version-guards them *and* wraps them in try/catch, because
+  non-VT hosts (CI subshells) reject `ListView` at runtime even on 2.4.5.
+- **`$env:_ZO_DOCTOR = 0`** before zoxide init, or zoxide nags on every shell.
+- **zoxide must init near the end** of the fragment so it wraps the already-defined
+  hooks rather than being wrapped.
 - `Set-Alias` cannot pass arguments. For aliases that need flags (most of them), use a function wrapper: `function ll { eza -la --icons --git --header @args }`.
-- `cat` and `ls` are built-in PowerShell aliases for `Get-Content` and `Get-ChildItem`. Overriding them via `Set-Alias` requires `-Force`. Some users want to keep the PowerShell defaults — surface this trade-off to Daniel before committing to the override.
-- Execution policy must permit script execution. `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` if needed.
-- PSFzf requires `fzf.exe` to be in PATH (brief 05 installs it).
-- mise's PowerShell activation requires mise 2024.x or newer. If older, surface and update.
+- `cat` and `ls` are built-in PowerShell aliases for `Get-Content` and `Get-ChildItem`. The fragment overrides both with `Remove-Item Alias:... -Force` then a function. This is a deliberate, confirmed choice — `Get-ChildItem` is still reachable by its real name.
+- PSFzf requires `fzf.exe` to be in PATH (brief 05 installs it). If `fzf.exe` is
+  absent the fragment's guard silently skips the whole block — you lose `Ctrl+R`
+  with no error message. That is exactly the current bug.
+- mise's PowerShell activation requires mise 2024.x or newer. As-built: **2026.5.6**.

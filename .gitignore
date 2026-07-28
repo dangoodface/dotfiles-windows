@@ -5,8 +5,8 @@
 .DS_Store
 Thumbs.db
 
-# Local bootstrap log (generated during implementation, per-machine)
-BOOTSTRAP_LOG.md
+# BOOTSTRAP_LOG.md is tracked deliberately as of 2026-07-28 — the as-built audit is
+# the most useful thing in the repo when reproducing the setup on another machine.
 
 # Anything explicitly marked secret
 *.secret

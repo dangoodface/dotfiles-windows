@@ -16,7 +16,56 @@ Install the modern Unix-replacement CLI tools Daniel uses on Linux. All have nat
 | **zoxide** | zoxide | `winget install --id ajeetdsouza.zoxide` | Smart `cd`; activated by brief 02 |
 | **lazygit** | lazygit | `winget install --id JesseDuffield.lazygit` | Git TUI; aliased to `lg` in profile |
 | **dust** | dust | `winget install --id bootandy.dust` | Disk-usage tree view |
-| **btop** | btop | best-effort — `scoop install btop` if available, else fall back to `ntop` or skip | Process viewer; on Windows the closest equivalent may be `ntop` (`scoop install ntop`) |
+| **btop** | btop | **SKIPPED** — not installed on the source machine | Neither `btop` nor `ntop` resolve. The `top` function in the fragment is guarded, so it simply never gets defined. Accepted gap. |
+| **jq** | jq | `winget install --id jqlang.jq` | **Required, not optional** — the Claude Code safeguard hooks in brief 08 parse JSON with `jq`. Without it they fail silently. |
+| **Bitwarden CLI** | (n/a) | `winget install --id Bitwarden.CLI` | Backs the `secret` function; see brief 09. |
+| **uv** | uv | direct install into `%USERPROFILE%\.local\bin` | Present as-built (`uv`, `uvw`, `uvx`). Not referenced by the profile; noted so the `.local\bin` PATH prepend has a known purpose. |
+
+## As-built versions (source machine, 2026-07-28)
+
+All installed **per-user via winget**, each package getting its own PATH entry under
+`%LOCALAPPDATA%\Microsoft\WinGet\Packages\`. No scoop on this machine.
+
+| Tool | Installed | Update available |
+|---|---|---|
+| bat | 0.26.1 | — |
+| dust | 1.2.4 | — |
+| eza | 0.23.4 | 0.23.5 |
+| fd | 10.4.2 | — |
+| **fzf** | **0.72.0 — BROKEN, see below** | 0.74.1 |
+| jq | 1.8.2 | — |
+| lazygit | 0.61.1 | 0.63.1 |
+| ripgrep (MSVC) | 15.1.0 | 15.2.0 |
+| starship | 1.25.1 | 1.26.0 |
+| zoxide | 0.9.9 | 0.10.0 |
+| mise | 2026.5.6 | 2026.7.12 |
+| neovim | 0.12.2 | 0.12.4 |
+| Bitwarden CLI | present | — |
+
+## KNOWN BREAKAGE — fzf
+
+`winget list` reports fzf 0.72.0 installed and its PATH entry exists, but **the
+binary is gone**. The package directory contains only its manifest database:
+
+```
+%LOCALAPPDATA%\Microsoft\WinGet\Packages\junegunn.fzf_Microsoft.Winget.Source_8wekyb3d8bbwe\
+  junegunn.fzf_Microsoft.Winget.Source_8wekyb3d8bbwe.db      <- 16 KB, and nothing else
+```
+
+`Get-Command fzf` → not found. Because the PSFzf block in the fragment is guarded on
+`Get-Command fzf`, it **silently skips**: `Ctrl+R` fuzzy history, `Ctrl+T` file
+picker and `Alt+C` directory picker are all dead, with no error at shell startup.
+
+Fix:
+
+```pwsh
+winget install --id junegunn.fzf --force   # reinstall, also moves to 0.74.1
+# restart the shell so the fragment's PATH rebuild picks it up
+```
+
+A fresh machine following this brief normally should not hit this — it is a
+corrupted install on the source machine, not a design flaw. But **verify the binary,
+not `winget list`**, because `winget list` lies here.
 
 ## Constraints
 
@@ -27,13 +76,17 @@ Install the modern Unix-replacement CLI tools Daniel uses on Linux. All have nat
 ## Verification
 
 ```pwsh
-foreach ($tool in 'eza','bat','fzf','rg','fd','zoxide','lazygit','dust') {
+foreach ($tool in 'eza','bat','fzf','rg','fd','zoxide','lazygit','dust','jq','bw') {
   $cmd = Get-Command $tool -ErrorAction SilentlyContinue
   "$tool : $(if ($cmd) { 'OK ' + $cmd.Source } else { 'MISSING' })"
 }
 ```
 
-All entries should report `OK <path>`.
+All entries should report `OK <path>`. Do **not** substitute `winget list` for this —
+see the fzf breakage above, where `winget list` reports a package that has no binary.
+
+Known-acceptable `MISSING` on the source machine: `btop`/`ntop` (skipped by design).
+Known-unacceptable: `fzf` (regression, fix it).
 
 ## Implementation hints
 
