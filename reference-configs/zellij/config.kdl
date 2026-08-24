@@ -14,7 +14,7 @@
 //   winget install --id Microsoft.PowerShell -e --scope machine --force
 // then change this line to the stable path (and it stops breaking on upgrades):
 //   default_shell "C:/Program Files/PowerShell/7/pwsh.exe"
-default_shell "C:/Program Files/WindowsApps/Microsoft.PowerShell_7.6.4.0_x64__8wekyb3d8bbwe/pwsh.exe"
+default_shell "C:/Program Files/WindowsApps/Microsoft.PowerShell_7.6.5.0_x64__8wekyb3d8bbwe/pwsh.exe"
 
 // ── Default working directory ─────────────────────────────────────────────
 // New tabs/panes open here. Local project hub (not OneDrive); cd into any
