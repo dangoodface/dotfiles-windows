@@ -119,3 +119,39 @@ Plus, outside the terminal layer: the profile stub's absolute path to the fragme
 - **Pending updates** across eza, fzf, lazygit, ripgrep, starship, zoxide, mise, neovim,
   git, gh. Nothing forced; versions recorded in brief 05 so drift is measurable next time.
 - **`audit.jsonl` has no rotation** and grows per tool call.
+
+## 2026-08-27  Drift resync
+
+Checked every file in `reference-configs/` against the live machine. Four were already identical
+(`starship.toml`, `mise-config.toml`, `zellij/config.kdl`, `nvim/**`). Two had drifted and are now
+resynced. One difference is deliberate and was left alone.
+
+**`wezterm/wezterm.lua`** now carries the live pwsh resolution. The committed version probed the
+stable MSI path at `C:/Program Files/PowerShell/7/pwsh.exe` first. The live version pins the known
+Store path for **7.6.5.0**, caches the resolved path in `~/.config/wezterm/.pwsh-path`, and orders
+the branches fastest-first so only the last one spawns a process, and only after a PowerShell
+upgrade moves the Store path. This is the wezterm half of the same work as commit `9bc6dfd`, which
+repointed zellij at 7.6.5.0 but never committed the terminal side.
+
+**`claude-settings.json`** gains the `model` preference and the **pixtuoid** hook wiring.
+pixtuoid 0.16.0 (MIT, `IvanWng97/pixtuoid`) was installed globally via npm on 2026-07-29. It is a
+terminal pixel-art session visualiser and it registers against seven lifecycle events with matcher
+`.*`, being `PreToolUse`, `PostToolUse`, `SessionStart`, `Notification`, `SubagentStart`,
+`SubagentStop` and `SessionEnd`. Worth knowing that a `PreToolUse` hook on `.*` receives the full
+tool input on stdin, so this binary observes every tool call in a session.
+
+The live command is an absolute path that embeds both the user id and the node version
+(`...\mise\installs\node\24.15.0\node_modules\pixtuoid\...\pixtuoid-hook.exe`), which would
+break on any node upgrade. Committed here as the bare `pixtuoid-hook` shim instead. Verified
+resolvable on PATH from both bash and PowerShell, with `.cmd` and `.ps1` wrappers present in the
+npm global bin directory.
+
+### Deliberately not synced
+
+**`permissions.additionalDirectories`** stays out. The live file grants three directories, two of
+which name the employer's cloud drive. Per `README.md`, employer-specific `~/.claude` content does
+not belong in a public repo. Consequence to accept: anyone rebuilding from this repo will not know
+those grants exist and will hit permission prompts until they add their own.
+
+**`pwsh-dotfiles-fragment.ps1`** stays as committed. Its five line difference from the live file is
+the existing employer-name scrub and the file carries an inline note saying not to resync it.

@@ -94,6 +94,15 @@
             "command": "INPUT=$(cat); FPATH=$(echo \"$INPUT\" | jq -r '.tool_input.file_path // empty'); if [ -n \"$FPATH\" ] && [ -f \"$FPATH\" ]; then BACKUP_DIR=\"$HOME/Automation/backups\"; mkdir -p \"$BACKUP_DIR\"; BASE=$(basename \"$FPATH\"); EXT=\"${BASE##*.}\"; NAME=\"${BASE%.*}\"; TS=$(date '+%Y%m%d-%H%M%S'); cp \"$FPATH\" \"$BACKUP_DIR/${NAME}_${TS}.${EXT}\" 2>/dev/null; fi"
           }
         ]
+      },
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pixtuoid-hook"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -103,6 +112,15 @@
           {
             "type": "command",
             "command": "INPUT=$(cat); TOOL=$(echo \"$INPUT\" | jq -r '.tool_name // \"unknown\"'); FPATH=$(echo \"$INPUT\" | jq -r '.tool_input.file_path // \"unknown\"'); echo \"$(date '+%Y-%m-%d %H:%M:%S') $TOOL $FPATH\" >> \"$HOME/Automation/logs/file-operations.log\""
+          }
+        ]
+      },
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pixtuoid-hook"
           }
         ]
       }
@@ -121,8 +139,64 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pixtuoid-hook"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pixtuoid-hook"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pixtuoid-hook"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pixtuoid-hook"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pixtuoid-hook"
+          }
+        ]
+      }
     ]
   },
+  "model": "opus[1m]",
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true
   },

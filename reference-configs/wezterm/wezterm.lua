@@ -21,26 +21,69 @@ config.color_scheme = 'Catppuccin Mocha'
 -- pwsh.exe) is a 0-byte "app execution alias" reparse stub; WezTerm spawns
 -- processes directly and cannot execute it, so it silently falls back to
 -- Windows PowerShell 5.1. Resolve the real binary instead.
+-- Resolve the real pwsh binary. Ordered fastest-first: every branch except
+-- the last is a plain file probe (~0ms). Only branch 4 spawns a process, and
+-- only after a PowerShell upgrade moves the Store path out from under us.
+local KNOWN_PWSH =
+  'C:/Program Files/WindowsApps/Microsoft.PowerShell_7.6.5.0_x64__8wekyb3d8bbwe/pwsh.exe'
+local PWSH_CACHE = wezterm.home_dir .. '/.config/wezterm/.pwsh-path'
+
+local function readable(path)
+  if not path or path == '' then return nil end
+  local h = io.open(path, 'r')
+  if h then h:close() return path end
+  return nil
+end
+
 local function find_pwsh()
-  -- 1. stable MSI/winget install, if it ever gets installed (preferred)
-  local msi = 'C:/Program Files/PowerShell/7/pwsh.exe'
-  local f = io.open(msi, 'r')
-  if f then f:close() return msi end
-  -- 2. Microsoft Store build: the version is baked into the path, so try to
-  --    auto-discover the newest one. This is what keeps the config working
-  --    across PowerShell upgrades.
-  local ok, hits = pcall(wezterm.glob,
-    'C:/Program Files/WindowsApps/Microsoft.PowerShell_*_x64__8wekyb3d8bbwe/pwsh.exe')
-  if ok and hits and #hits > 0 then
-    table.sort(hits)
-    return hits[#hits]
+  -- 1. Stable MSI/winget install. Zero cost and immune to Store versioning.
+  --    To get here permanently:
+  --      winget install --id Microsoft.PowerShell --source winget
+  local msi = readable('C:/Program Files/PowerShell/7/pwsh.exe')
+  if msi then return msi end
+
+  -- 2. Last known-good Store path, probed directly.
+  local known = readable(KNOWN_PWSH)
+  if known then return known end
+
+  -- 3. Path discovered by a previous branch-4 run, after an upgrade.
+  local cache = io.open(PWSH_CACHE, 'r')
+  if cache then
+    local cached = cache:read('*l')
+    cache:close()
+    local hit = readable(cached)
+    if hit then return hit end
   end
-  -- 3. Known-good path as a last resort. Deliberately NOT 'powershell.exe':
-  --    falling back to 5.1 is what silently hid this bug before (5.1 reads a
-  --    different profile, so none of the add-ons load). If this ever stops
-  --    working, refresh the version with:
-  --    Get-ChildItem 'C:\Program Files\WindowsApps' -Filter 'Microsoft.PowerShell_*_x64__*'
-  return 'C:/Program Files/WindowsApps/Microsoft.PowerShell_7.6.4.0_x64__8wekyb3d8bbwe/pwsh.exe'
+
+  -- 4. Discover. NOTE: do NOT use wezterm.glob for this. The ACL on
+  --    'C:\Program Files\WindowsApps' denies directory ENUMERATION to normal
+  --    processes, so the glob silently returns zero hits even though the
+  --    versioned path underneath is readable and executable. That silent
+  --    zero-hit is what made this fall through to a stale hardcoded version
+  --    and exit with code 1 on launch. Costs ~2s, so it is last and cached.
+  local ok, success, stdout = pcall(wezterm.run_child_process, {
+    'powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+    '(Get-AppxPackage Microsoft.PowerShell).InstallLocation',
+  })
+  if ok and success and stdout then
+    for line in stdout:gmatch('[^\r\n]+') do
+      local dir = line:gsub('^%s+', ''):gsub('%s+$', '')
+      if dir ~= '' then
+        local exe = readable(dir .. '/pwsh.exe')
+        if exe then
+          local w = io.open(PWSH_CACHE, 'w')
+          if w then w:write(exe) w:close() end
+          return exe
+        end
+      end
+    end
+  end
+
+  -- 5. Last resort. Deliberately NOT 'powershell.exe': falling back to 5.1 is
+  --    what silently hid this bug before (5.1 reads a different profile, so
+  --    none of the add-ons load). Refresh KNOWN_PWSH above with:
+  --      (Get-AppxPackage Microsoft.PowerShell).InstallLocation
+  return KNOWN_PWSH
 end
 config.default_prog = { find_pwsh(), '-NoLogo' }
 
